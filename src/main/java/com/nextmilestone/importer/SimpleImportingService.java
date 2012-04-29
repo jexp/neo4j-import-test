@@ -1,5 +1,7 @@
 package com.nextmilestone.importer;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -11,6 +13,7 @@ import org.apache.commons.logging.LogFactory;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Transaction;
+import org.neo4j.kernel.impl.util.FileUtils;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
 import org.springframework.data.neo4j.core.GraphDatabase;
 import org.springframework.data.neo4j.support.DelegatingGraphDatabase;
@@ -24,7 +27,8 @@ public class SimpleImportingService {
 	private static Neo4jTemplate neo4jTemplate;
 	private static GraphDatabaseService graphDatabaseService;
 
-	public static void main(String[] args) {
+	public static void main(String[] args) throws IOException {
+        FileUtils.deleteRecursively(new File("data/graph.db"));
 		ClassPathXmlApplicationContext context = new ClassPathXmlApplicationContext("applicationContext.xml");
 		graphDatabaseService = context.getBean("graphDatabaseService", GraphDatabaseService.class);
     	GraphDatabase graphDatabase = new DelegatingGraphDatabase(graphDatabaseService);
@@ -51,17 +55,17 @@ public class SimpleImportingService {
 	}
 
 	private static void importData() {
-		for (int i = 0; i < NUMBER_OF_ORDERS; i++) {
-			Node orderNode = createOrderNode(new Order(String.valueOf(i)));
-			List<Node> itemNodes = createItemNodes(generateItemsForOrder(NUMBER_OF_ITEMS_PER_ORDER));
+		for (int orderid = 0; orderid < NUMBER_OF_ORDERS; orderid++) {
+			Node orderNode = createOrderNode(new Order(String.valueOf(orderid)));
+			List<Node> itemNodes = createItemNodes(generateItemsForOrder(NUMBER_OF_ITEMS_PER_ORDER,orderid));
 			relateOrderToItems(orderNode, itemNodes);
 		}
 	}
 
-	private static List<Item> generateItemsForOrder(int numberOfItemsPerOrder) {
+	private static List<Item> generateItemsForOrder(int numberOfItemsPerOrder, int orderId) {
 		List<Item> items = new ArrayList<Item>(numberOfItemsPerOrder);
 		for (int i = 0; i < numberOfItemsPerOrder; i++) {
-			Item item = new Item(UUID.randomUUID().toString());
+			Item item = new Item(String.valueOf(orderId*numberOfItemsPerOrder+i));
 			items.add(item);
 		}
 		return items;
@@ -69,7 +73,7 @@ public class SimpleImportingService {
 
 	private static Node createOrderNode(Order order) {
 		String orderId = order.getId();
-		log.info("Importing order: " + orderId);
+		//log.info("Importing order: " + orderId);
 		return neo4jTemplate.getOrCreateNode("Order", "id", orderId, orderPropertyMap(order));
 	}
 
@@ -85,7 +89,7 @@ public class SimpleImportingService {
 
 	private static Node createItemNode(Item item) {
 		String itemId = item.getId();
-		log.info("Importing item");
+		//log.info("Importing item");
 		return neo4jTemplate.getOrCreateNode("Item", "id", itemId, itemPropertyMap(item));
 	}
 
